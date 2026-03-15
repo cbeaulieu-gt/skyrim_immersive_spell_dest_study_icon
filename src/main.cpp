@@ -4,6 +4,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <string_view>
 
+#include "DIII_API.h"
 #include "PapyrusBridge.h"
 
 namespace logger = SKSE::log;

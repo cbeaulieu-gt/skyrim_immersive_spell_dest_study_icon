@@ -16,17 +16,23 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
 endif()
 
 find_package(CommonLibSSE CONFIG REQUIRED)
+find_package(jsoncpp CONFIG REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
     src/main.cpp
     src/PapyrusBridge.cpp
     include/PapyrusBridge.h
+    external/diii/DIII_API.h
 )
-target_link_libraries(${PROJECT_NAME} PRIVATE CommonLibSSE::CommonLibSSE)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    CommonLibSSE::CommonLibSSE
+    JsonCpp::JsonCpp
+)
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE
         include
+        external/diii
 )
 
 # Optional convenience copy if SKYRIM_MODS_PATH points to a mod output folder.
