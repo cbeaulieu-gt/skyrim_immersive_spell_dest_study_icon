@@ -1,3 +1,4 @@
+#include "PCH.h"
 #include <RE/Skyrim.h>
 #include <REL/Relocation.h>
 #include <SKSE/SKSE.h>
@@ -9,9 +10,11 @@ namespace logger = SKSE::log;
 namespace
 {
     constexpr RE::FormID kLastSpellTomeFormID = 0x1A000805;
+    constexpr std::string_view kDIIISender = "DynamicInventoryIconInjector";
     constexpr std::string_view kImmSpellLearningRuleName = "currentlyLearningSpell";
 
     std::atomic_bool g_dataLoaded{false};
+    std::atomic_bool g_diiiListenerRegistered{false};
     std::atomic_bool g_lastSpellTomeRuleDisabled{false};
     std::once_flag g_lastSpellTomeInitOnce;
     RE::BGSListForm *g_lastSpellTomeList = nullptr;
@@ -106,7 +109,7 @@ namespace
         bool _expected;
     };
 
-    bool RegisterKnownSpellCondition(DIII::IAPI *api, const char *name)
+    bool RegisterStudyingSpellTomeCondition(DIII::IAPI *api, const char *name)
     {
         const bool registered = api->RegisterCondition(
             name,
@@ -133,6 +136,7 @@ namespace
 
     void OnDIIIRegistration(SKSE::MessagingInterface::Message *message)
     {
+        logger::info("Received DIII registration message");
         if (!message || message->type != DIII::kMessage_GetAPI || !message->data)
         {
             return;
@@ -146,7 +150,51 @@ namespace
         }
 
         logger::info("Connected to DIII API v{}", api->GetVersion());
-        RegisterKnownSpellCondition(api, "currentlyLearningSpell");
+        RegisterStudyingSpellTomeCondition(api, "currentlyLearningSpell");
+    }
+
+    void TryRegisterDIIIListener()
+    {
+        if (g_diiiListenerRegistered.load())
+        {
+            return;
+        }
+
+        const auto messaging = SKSE::GetMessagingInterface();
+        if (!messaging)
+        {
+            return;
+        }
+
+        if (!messaging->RegisterListener(kDIIISender.data(), OnDIIIRegistration))
+        {
+            logger::warn("DIII sender '{}' is not ready yet; will retry later", kDIIISender);
+            return;
+        }
+
+        g_diiiListenerRegistered.store(true);
+        logger::info("DIII registration listener enabled for sender '{}'", kDIIISender);
+    }
+
+    void OnSKSELifecycle(SKSE::MessagingInterface::Message *message)
+    {
+        if (!message)
+        {
+            return;
+        }
+
+        if (message->type == SKSE::MessagingInterface::kPostPostLoad)
+        {
+            TryRegisterDIIIListener();
+            return;
+        }
+
+        if (message->type == SKSE::MessagingInterface::kDataLoaded)
+        {
+            g_dataLoaded.store(true);
+            TryRegisterDIIIListener();
+            logger::info("Data loaded event received");
+        }
     }
 }
 
@@ -158,12 +206,20 @@ SKSEPluginLoad(const SKSE::LoadInterface *skse)
     SKSE::Init(skse);
     logger::info("SKSE initialized");
 
-    // #if defined(HAS_DIII_API) && HAS_DIII_API
-    DIII::ListenForRegistration(OnDIIIRegistration);
-    logger::info("DIII registration listener enabled");
-    // #else
-    //     logger::warn("DIII_API.h not found; skipping DIII integration (add external/diii/DIII_API.h)");
-    // #endif
+    if (const auto messaging = SKSE::GetMessagingInterface())
+    {
+        if (!messaging->RegisterListener(OnSKSELifecycle))
+        {
+            logger::error("Failed to register SKSE lifecycle listener");
+            return false;
+        }
+        logger::info("Registered SKSE lifecycle listener");
+    }
+    else
+    {
+        logger::error("Failed to acquire messaging interface");
+        return false;
+    }
 
     logger::info("imm_spell_learning_icon_skse ready");
     return true;

@@ -1,51 +1,67 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.23)
 project(DIIIDestImmSpellLearningIcon VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(MSVC)
     add_compile_options(/permissive- /W4 /EHsc /utf-8 /Zc:preprocessor)
 endif()
 
-if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    message(WARNING "CMAKE_TOOLCHAIN_FILE was not set. Configure with vcpkg toolchain for dependency resolution.")
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{VCPKG_ROOT})
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain")
 endif()
 
 find_package(CommonLibSSE CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 find_package(jsoncpp CONFIG REQUIRED)
 
-add_library(${PROJECT_NAME} SHARED
+set(PLUGIN_SOURCES
     src/main.cpp
-    external/diii/DIII_API.h
 )
+
+add_commonlibsse_plugin(${PROJECT_NAME} SOURCES ${PLUGIN_SOURCES})
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_23)
+target_precompile_headers(${PROJECT_NAME} PRIVATE PCH.h)
+
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
-    CommonLibSSE::CommonLibSSE
+    PRIVATE
+    spdlog::spdlog
     JsonCpp::JsonCpp
 )
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE
-        include
-        external/diii
+    ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/external/diii
 )
 
-# Optional convenience copy if SKYRIM_MODS_PATH points to a mod output folder.
-if(DEFINED ENV{SKYRIM_MODS_PATH})
-    set(SKSE_PLUGIN_OUT "$ENV{SKYRIM_MODS_PATH}/SKSE/Plugins")
-    add_custom_command(TARGET ${PROJECT_NAME}
+if(DEFINED DEPLOY_ROOT)
+    set(DLL_FOLDER "${DEPLOY_ROOT}/SKSE/Plugins")
+    message(STATUS "Deploy folder: ${DLL_FOLDER}")
+
+    add_custom_command(
+        TARGET ${PROJECT_NAME}
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${SKSE_PLUGIN_OUT}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${DLL_FOLDER}"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "$<TARGET_FILE:${PROJECT_NAME}>"
-            "${SKSE_PLUGIN_OUT}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+            "${DLL_FOLDER}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
         VERBATIM
     )
-endif()
 
-install(TARGETS ${PROJECT_NAME}
-    RUNTIME DESTINATION SKSE/Plugins
-)
+    if(MSVC)
+        add_custom_command(
+            TARGET ${PROJECT_NAME}
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_PDB_FILE:${PROJECT_NAME}>"
+                "${DLL_FOLDER}/$<TARGET_PDB_FILE_NAME:${PROJECT_NAME}>"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+    endif()
+endif()
