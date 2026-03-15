@@ -21,9 +21,9 @@ This workspace is a starter scaffold for a Skyrim SKSE plugin using CommonLibSSE
 ## Configure
 
 ```powershell
-cmake --preset ninja-vcpkg-debug
+./scripts/configure.ps1 -Preset ninja-vcpkg-debug
 # or
-cmake --preset ninja-vcpkg-release
+./scripts/configure.ps1 -Preset ninja-vcpkg-release
 ```
 
 This project is manifest mode (`vcpkg.json`) and expects vcpkg to resolve `commonlibsse-ng`.
@@ -41,9 +41,9 @@ $env:SKYRIM_MODS_PATH = "I:/games/skyrim/mods/diii_dest_imm_spell_learning_icon"
 ## Build
 
 ```powershell
-cmake --build --preset build-ninja-vcpkg-debug
+./scripts/build.ps1 -Preset build-ninja-vcpkg-debug
 # or
-cmake --build --preset build-ninja-vcpkg-release
+./scripts/build.ps1 -Preset build-ninja-vcpkg-release
 ```
 
 ## VS Code IntelliSense notes

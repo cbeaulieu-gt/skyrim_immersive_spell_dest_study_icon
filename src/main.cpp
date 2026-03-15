@@ -8,7 +8,6 @@
 #include <string_view>
 
 #include "DIII_API.h"
-#include "PapyrusBridge.h"
 
 namespace logger = SKSE::log;
 
@@ -174,16 +173,6 @@ SKSEPluginLoad(const SKSE::LoadInterface *a_skse)
     else
     {
         logger::error("Failed to acquire messaging interface");
-        return false;
-    }
-
-    if (const auto papyrus = SKSE::GetPapyrusInterface())
-    {
-        papyrus->Register(PapyrusBridge::Register);
-    }
-    else
-    {
-        logger::error("Failed to acquire papyrus interface");
         return false;
     }
 

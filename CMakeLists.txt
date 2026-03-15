@@ -20,8 +20,6 @@ find_package(jsoncpp CONFIG REQUIRED)
 
 add_library(${PROJECT_NAME} SHARED
     src/main.cpp
-    src/PapyrusBridge.cpp
-    include/PapyrusBridge.h
     external/diii/DIII_API.h
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE

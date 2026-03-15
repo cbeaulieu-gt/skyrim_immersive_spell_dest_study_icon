@@ -10,10 +10,8 @@
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}\\scripts\\run-with-vsdevcmd.ps1",
-                "--",
-                "cmake",
-                "--preset",
+                "${workspaceFolder}\\scripts\\configure.ps1",
+                "-Preset",
                 "ninja-vcpkg-debug"
             ],
             "problemMatcher": []
@@ -27,13 +25,9 @@
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}\\scripts\\run-with-vsdevcmd.ps1",
-                "--",
-                "cmake",
-                "--build",
-                "--preset",
-                "build-ninja-vcpkg-debug",
-                "-v"
+                "${workspaceFolder}\\scripts\\build.ps1",
+                "-Preset",
+                "build-ninja-vcpkg-debug"
             ],
             "dependsOn": "Configure (Debug)",
             "problemMatcher": [
@@ -50,10 +44,8 @@
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}\\scripts\\run-with-vsdevcmd.ps1",
-                "--",
-                "cmake",
-                "--preset",
+                "${workspaceFolder}\\scripts\\configure.ps1",
+                "-Preset",
                 "ninja-vcpkg-release"
             ],
             "problemMatcher": []
@@ -67,13 +59,9 @@
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}\\scripts\\run-with-vsdevcmd.ps1",
-                "--",
-                "cmake",
-                "--build",
-                "--preset",
-                "build-ninja-vcpkg-release",
-                "-v"
+                "${workspaceFolder}\\scripts\\build.ps1",
+                "-Preset",
+                "build-ninja-vcpkg-release"
             ],
             "dependsOn": "Configure (Release)",
             "problemMatcher": [
