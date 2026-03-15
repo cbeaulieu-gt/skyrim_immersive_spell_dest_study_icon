@@ -1,9 +1,9 @@
 param(
     [ValidateSet(
-        "build-ninja-vcpkg-debug",
-        "build-ninja-vcpkg-release"
+        "build-debug",
+        "build-release"
     )]
-    [string]$Preset = "build-ninja-vcpkg-release"
+    [string]$Preset = "build-release"
 )
 
 $ErrorActionPreference = "Stop"

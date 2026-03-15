@@ -2,7 +2,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Configure (Debug)",
+            "label": "Configure Debug",
             "type": "shell",
             "command": "powershell",
             "args": [
@@ -10,14 +10,18 @@
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}\\scripts\\configure.ps1",
+                "${workspaceFolder}/scripts/configure.ps1",
                 "-Preset",
-                "ninja-vcpkg-debug"
+                "vs2022-debug"
             ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
             "problemMatcher": []
         },
         {
-            "label": "Build (Debug)",
+            "label": "Build Debug",
             "type": "shell",
             "command": "powershell",
             "args": [
@@ -25,52 +29,213 @@
                 "-ExecutionPolicy",
                 "Bypass",
                 "-File",
-                "${workspaceFolder}\\scripts\\build.ps1",
+                "${workspaceFolder}/scripts/build.ps1",
                 "-Preset",
-                "build-ninja-vcpkg-debug"
+                "build-debug"
             ],
-            "dependsOn": "Configure (Debug)",
-            "problemMatcher": [
-                "$msCompile"
-            ],
-            "group": "build"
-        },
-        {
-            "label": "Configure (Release)",
-            "type": "shell",
-            "command": "powershell",
-            "args": [
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                "${workspaceFolder}\\scripts\\configure.ps1",
-                "-Preset",
-                "ninja-vcpkg-release"
-            ],
-            "problemMatcher": []
-        },
-        {
-            "label": "Build (Release)",
-            "type": "shell",
-            "command": "powershell",
-            "args": [
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                "${workspaceFolder}\\scripts\\build.ps1",
-                "-Preset",
-                "build-ninja-vcpkg-release"
-            ],
-            "dependsOn": "Configure (Release)",
-            "problemMatcher": [
-                "$msCompile"
-            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Configure Release",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/configure.ps1",
+                "-Preset",
+                "vs2022-release"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Release",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/build.ps1",
+                "-Preset",
+                "build-release"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Debug: Configure + Build",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Configure Debug",
+                "Build Debug"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Release: Configure + Build",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Configure Release",
+                "Build Release"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Deploy Built DLL (.env default)",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/deploy.ps1",
+                "-Preset",
+                "${input:deployPreset}"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Deploy Built DLL + ZIP (.env defaults)",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/deploy.ps1",
+                "-Preset",
+                "${input:deployPreset}",
+                "-CreateZip"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Deploy Built DLL (Prompt target)",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/deploy.ps1",
+                "-Preset",
+                "${input:deployPreset}",
+                "-TargetDir",
+                "${input:deployTargetDir}"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Debug + Deploy (.env default)",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Build Debug",
+                "Deploy Built DLL (.env default)"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Build Debug + Deploy + ZIP (.env defaults)",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Build Debug",
+                "Deploy Built DLL + ZIP (.env defaults)"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Deploy Release DLL (.env defaults)",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/deploy.ps1",
+                "-Preset",
+                "build-release"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Deploy Release DLL + ZIP (.env defaults)",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                "${workspaceFolder}/scripts/deploy.ps1",
+                "-Preset",
+                "build-release",
+                "-CreateZip"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Release Full: Configure + Build + Deploy + ZIP",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Configure Release",
+                "Build Release",
+                "Deploy Release DLL + ZIP (.env defaults)"
+            ],
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "deployPreset",
+            "type": "pickString",
+            "description": "Choose the build preset that produced your DLL",
+            "default": "build-release",
+            "options": [
+                "build-debug",
+                "build-release"
+            ]
+        },
+        {
+            "id": "deployTargetDir",
+            "type": "promptString",
+            "description": "Destination folder for inventory_injector_known_spells_skse.dll"
         }
     ]
 }

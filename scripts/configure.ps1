@@ -1,5 +1,5 @@
 param(
-    [string]$Preset = "ninja-vcpkg-debug",
+    [string]$Preset = "vs2022-debug",
     [switch]$Clean
 )
 
