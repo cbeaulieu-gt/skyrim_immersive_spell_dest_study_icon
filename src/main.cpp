@@ -1,12 +1,7 @@
 #include <RE/Skyrim.h>
 #include <REL/Relocation.h>
 #include <SKSE/SKSE.h>
-#include <atomic>
-#include <mutex>
 #include <spdlog/sinks/basic_file_sink.h>
-#include <memory>
-#include <string_view>
-
 #include "DIII_API.h"
 
 namespace logger = SKSE::log;
@@ -20,6 +15,25 @@ namespace
     std::atomic_bool g_lastSpellTomeRuleDisabled{false};
     std::once_flag g_lastSpellTomeInitOnce;
     RE::BGSListForm *g_lastSpellTomeList = nullptr;
+
+    void InitializeLog()
+    {
+        const auto logDir = SKSE::log::log_directory();
+        if (!logDir)
+        {
+            std::terminate();
+        }
+
+        const auto pluginName = SKSE::PluginDeclaration::GetSingleton()->GetName();
+        const auto logPath = *logDir / fmt::format("{}.log", pluginName);
+
+        auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath.string(), true);
+        auto log = std::make_shared<spdlog::logger>("global", std::move(sink));
+
+        spdlog::set_default_logger(std::move(log));
+        spdlog::set_level(spdlog::level::info);
+        spdlog::flush_on(spdlog::level::info);
+    }
 
     void InitializeLastSpellTomeList()
     {
@@ -36,9 +50,31 @@ namespace
         logger::info("Resolved LastSpellTome form list {:08X}", kLastSpellTomeFormID);
     }
 
+    RE::TESObjectBOOK *GetBookFromEntry(RE::InventoryEntryData *entry)
+    {
+        if (!entry)
+        {
+            return nullptr;
+        }
+
+        return entry->GetObject() ? entry->GetObject()->As<RE::TESObjectBOOK>() : nullptr;
+    }
+
+    bool TeachesSpell(RE::TESObjectBOOK *book)
+    {
+        if (!book)
+        {
+            return false;
+        }
+
+        return book->TeachesSpell();
+    }
+
     class LastSpellTomeCondition final : public DIII::ICondition
     {
     public:
+        explicit LastSpellTomeCondition(bool expected) : _expected(expected) {}
+
         bool Match(RE::InventoryEntryData *a_entry) const override
         {
             if (!a_entry)
@@ -57,125 +93,78 @@ namespace
                 return false;
             }
 
-            const auto *object = a_entry->GetObject();
-            const auto *book = object ? object->As<RE::TESObjectBOOK>() : nullptr;
-            if (!book || !book->TeachesSpell())
+            auto *book = GetBookFromEntry(a_entry);
+            if (!TeachesSpell(book))
             {
                 return false;
             }
 
             return g_lastSpellTomeList->HasForm(book);
         }
+
+    private:
+        bool _expected;
     };
 
-    std::unique_ptr<DIII::ICondition> BuildLastSpellTomeCondition(const Json::Value &, RE::FormType a_type)
+    bool RegisterKnownSpellCondition(DIII::IAPI *api, const char *name)
     {
-        if (a_type != RE::FormType::Book)
-        {
-            return nullptr;
-        }
+        const bool registered = api->RegisterCondition(
+            name,
+            [name](const Json::Value &value, RE::FormType type) -> std::unique_ptr<DIII::ICondition>
+            {
+                if (type != RE::FormType::Book)
+                {
+                    logger::warn("{} should only be used for Book entries, got form type {}", name, static_cast<std::uint32_t>(type));
+                }
 
-        return std::make_unique<LastSpellTomeCondition>();
+                if (!value.isBool())
+                {
+                    logger::warn("{} expects boolean JSON value", name);
+                    return nullptr;
+                }
+
+                logger::info("{} condition builder accepted value={}", name, value.asBool());
+                return std::make_unique<LastSpellTomeCondition>(value.asBool());
+            });
+
+        logger::info("{} registration {}", name, registered ? "succeeded" : "failed");
+        return registered;
     }
 
-    void RegisterDIIIRules(DIII::IAPI *a_api)
+    void OnDIIIRegistration(SKSE::MessagingInterface::Message *message)
     {
-        if (!a_api)
-        {
-            logger::error("DIII API pointer was null");
-            return;
-        }
-
-        if (a_api->RegisterCondition(kImmSpellLearningRuleName.data(), BuildLastSpellTomeCondition))
-        {
-            logger::info("Registered DIII condition rule '{}'", kImmSpellLearningRuleName);
-        }
-        else
-        {
-            logger::error("Failed to register DIII condition rule '{}'", kImmSpellLearningRuleName);
-        }
-    }
-
-    void DIIIMessageHandler(SKSE::MessagingInterface::Message *a_msg)
-    {
-        if (!a_msg || a_msg->type != DIII::kMessage_GetAPI)
+        if (!message || message->type != DIII::kMessage_GetAPI || !message->data)
         {
             return;
         }
 
-        auto *api = static_cast<DIII::IAPI *>(a_msg->data);
-        if (!api)
+        auto *api = static_cast<DIII::IAPI *>(message->data);
+        if (api->GetVersion() < 1)
         {
-            logger::error("DIII API message did not include a valid API pointer");
+            logger::warn("DIII API version {} is unsupported", api->GetVersion());
             return;
         }
 
-        logger::info("Received DIII API, version {}", api->GetVersion());
-        RegisterDIIIRules(api);
+        logger::info("Connected to DIII API v{}", api->GetVersion());
+        RegisterKnownSpellCondition(api, "currentlyLearningSpell");
     }
 }
 
-SKSEPluginInfo(
-        .Version = REL::Version{0, 1, 0, 0},
-        .Name = std::string_view{"DIII Dest Imm Spell Learning Icon"},
-        .Author = std::string_view{"Chris"},
-        .SupportEmail = std::string_view{""},
-        .StructCompatibility = SKSE::StructCompatibility::Independent,
-        .RuntimeCompatibility = SKSE::VersionIndependence::AddressLibrary,
-        .MinimumSKSEVersion = REL::Version{0, 0, 0, 0})
-
-    void SetupLog()
+SKSEPluginLoad(const SKSE::LoadInterface *skse)
 {
-    auto logPath = logger::log_directory();
-    if (!logPath)
-    {
-        SKSE::stl::report_and_fail("Unable to find SKSE log directory");
-    }
+    InitializeLog();
+    logger::info("imm_spell_learning_icon_skse init start");
 
-    *logPath /= "DIIIDestImmSpellLearningIcon.log";
+    SKSE::Init(skse);
+    logger::info("SKSE initialized");
 
-    auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath->string(), true);
-    auto log = std::make_shared<spdlog::logger>("global log", std::move(sink));
+    // #if defined(HAS_DIII_API) && HAS_DIII_API
+    DIII::ListenForRegistration(OnDIIIRegistration);
+    logger::info("DIII registration listener enabled");
+    // #else
+    //     logger::warn("DIII_API.h not found; skipping DIII integration (add external/diii/DIII_API.h)");
+    // #endif
 
-    log->set_level(spdlog::level::info);
-    log->flush_on(spdlog::level::info);
-
-    spdlog::set_default_logger(std::move(log));
-    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%l] %v");
-}
-
-void MessageHandler(SKSE::MessagingInterface::Message *a_msg)
-{
-    if (!a_msg)
-    {
-        return;
-    }
-
-    if (a_msg->type == SKSE::MessagingInterface::kDataLoaded)
-    {
-        g_dataLoaded.store(true);
-        logger::info("Data loaded event received");
-    }
-}
-
-SKSEPluginLoad(const SKSE::LoadInterface *a_skse)
-{
-    SetupLog();
-    logger::info("Loading plugin");
-
-    SKSE::Init(a_skse);
-
-    if (const auto messaging = SKSE::GetMessagingInterface())
-    {
-        messaging->RegisterListener(MessageHandler);
-        DIII::ListenForRegistration(DIIIMessageHandler);
-    }
-    else
-    {
-        logger::error("Failed to acquire messaging interface");
-        return false;
-    }
-
-    logger::info("Plugin loaded successfully");
+    logger::info("imm_spell_learning_icon_skse ready");
     return true;
 }

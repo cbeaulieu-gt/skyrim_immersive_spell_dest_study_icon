@@ -1,12 +1,12 @@
 param(
     [ValidateSet(
-        "build-debug",
-        "build-release"
+        "build-ninja-vcpkg-debug",
+        "build-ninja-vcpkg-release"
     )]
-    [string]$Preset = "build-release",
+    [string]$Preset = "build-ninja-vcpkg-release",
     [string]$TargetDir,
     [string[]]$TargetDirs,
-    [string]$BinaryName = "inventory_injector_known_spells_skse",
+    [string]$BinaryName = "DIIIDestImmSpellLearningIcon",
     [switch]$SkipPdb,
     [switch]$CreateZip,
     [switch]$AllowDebug,
@@ -208,14 +208,49 @@ if (-not $buildPreset) {
 
 $configurePreset = [string]$buildPreset.configurePreset
 $configuration = [string]$buildPreset.configuration
-if (-not $configurePreset -or -not $configuration) {
-    throw "Build preset '$Preset' is missing configurePreset or configuration."
+if (-not $configurePreset) {
+    throw "Build preset '$Preset' is missing configurePreset."
+}
+
+$configurePresetObj = $presets.configurePresets | Where-Object { $_.name -eq $configurePreset } | Select-Object -First 1
+$buildDir = Join-Path $repoRoot ("build/{0}" -f $configurePreset)
+if ($configurePresetObj -and $configurePresetObj.binaryDir) {
+    $resolvedBinaryDir = [string]$configurePresetObj.binaryDir
+    $resolvedBinaryDir = $resolvedBinaryDir.Replace('${sourceDir}', $repoRoot).Replace('${sourceParentDir}', (Split-Path -Parent $repoRoot))
+    $buildDir = $resolvedBinaryDir
+}
+
+if (-not $configuration) {
+    if ($configurePresetObj -and $configurePresetObj.cacheVariables -and
+        ($configurePresetObj.cacheVariables.PSObject.Properties.Name -contains "CMAKE_BUILD_TYPE")) {
+        $configuration = [string]$configurePresetObj.cacheVariables.CMAKE_BUILD_TYPE
+    }
+}
+
+if (-not $configuration) {
+    if ($Preset -match "(?i)debug") {
+        $configuration = "Debug"
+    }
+    elseif ($Preset -match "(?i)release") {
+        $configuration = "Release"
+    }
+    else {
+        $configuration = "Release"
+    }
 }
 
 $expectedDll = Join-Path $repoRoot ("build/{0}/{1}/{2}.dll" -f $configurePreset, $configuration, $BinaryName)
+$expectedDllFromBuildDir = Join-Path $buildDir ("{0}/{1}.dll" -f $configuration, $BinaryName)
+$singleConfigExpectedDll = Join-Path $buildDir ("{0}.dll" -f $BinaryName)
 $sourceDll = $expectedDll
+if (-not (Test-Path $sourceDll) -and (Test-Path $expectedDllFromBuildDir)) {
+    $sourceDll = $expectedDllFromBuildDir
+}
+if (-not (Test-Path $sourceDll) -and (Test-Path $singleConfigExpectedDll)) {
+    $sourceDll = $singleConfigExpectedDll
+}
 if (-not (Test-Path $sourceDll)) {
-    $searchRoot = Join-Path $repoRoot ("build/{0}" -f $configurePreset)
+    $searchRoot = $buildDir
     if (Test-Path $searchRoot) {
         $fallbackDll = Get-ChildItem -Path $searchRoot -Filter ("{0}.dll" -f $BinaryName) -File -Recurse |
         Sort-Object LastWriteTime -Descending |

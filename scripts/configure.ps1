@@ -1,5 +1,5 @@
 param(
-    [string]$Preset = "vs2022-debug",
+    [string]$Preset = "ninja-vcpkg-debug",
     [switch]$Clean
 )
 
@@ -97,14 +97,20 @@ function Get-CachedCMakeValue {
     return $parts[1].Trim()
 }
 
-$presetBuildDir = Join-Path $repoRoot ("build/" + $Preset)
-
 $presetsPath = Join-Path $repoRoot "CMakePresets.json"
 if (-not (Test-Path $presetsPath)) {
     throw "CMakePresets.json not found at $presetsPath"
 }
 
 $presets = Get-Content -Raw $presetsPath | ConvertFrom-Json
+$configurePreset = Get-ConfigurePresetByName -ConfigurePresets $presets.configurePresets -Name $Preset
+$presetBuildDir = Join-Path $repoRoot ("build/" + $Preset)
+if ($configurePreset -and $configurePreset.binaryDir) {
+    $resolvedBinaryDir = [string]$configurePreset.binaryDir
+    $resolvedBinaryDir = $resolvedBinaryDir.Replace('${sourceDir}', $repoRoot).Replace('${sourceParentDir}', (Split-Path -Parent $repoRoot))
+    $presetBuildDir = $resolvedBinaryDir
+}
+
 $resolvedCacheVars = Resolve-ConfigureCacheVariables -ConfigurePresets $presets.configurePresets -PresetName $Preset
 $expectedTriplet = $null
 if ($resolvedCacheVars.ContainsKey("VCPKG_TARGET_TRIPLET")) {
