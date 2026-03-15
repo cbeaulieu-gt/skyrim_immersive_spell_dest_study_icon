@@ -14,7 +14,7 @@ namespace logger = SKSE::log;
 namespace
 {
     constexpr RE::FormID kLastSpellTomeFormID = 0x1A000805;
-    constexpr std::string_view kLastSpellTomeRuleName = "lastSpellTome";
+    constexpr std::string_view kImmSpellLearningRuleName = "currentlyLearningSpell";
 
     std::atomic_bool g_dataLoaded{false};
     std::atomic_bool g_lastSpellTomeRuleDisabled{false};
@@ -28,7 +28,7 @@ namespace
         {
             logger::warn("LastSpellTome form list {:08X} was not found. Disabling '{}' rule.",
                          kLastSpellTomeFormID,
-                         kLastSpellTomeRuleName);
+                         kImmSpellLearningRuleName);
             g_lastSpellTomeRuleDisabled.store(true);
             return;
         }
@@ -86,13 +86,13 @@ namespace
             return;
         }
 
-        if (a_api->RegisterCondition(kLastSpellTomeRuleName.data(), BuildLastSpellTomeCondition))
+        if (a_api->RegisterCondition(kImmSpellLearningRuleName.data(), BuildLastSpellTomeCondition))
         {
-            logger::info("Registered DIII condition rule '{}'", kLastSpellTomeRuleName);
+            logger::info("Registered DIII condition rule '{}'", kImmSpellLearningRuleName);
         }
         else
         {
-            logger::error("Failed to register DIII condition rule '{}'", kLastSpellTomeRuleName);
+            logger::error("Failed to register DIII condition rule '{}'", kImmSpellLearningRuleName);
         }
     }
 
