@@ -1,0 +1,8 @@
+{
+  "name": "diii-dest-imm-spell-learning-icon",
+  "version-string": "0.1.0",
+  "description": "SKSE plugin scaffold using CommonLibSSE-NG",
+  "dependencies": [
+    "commonlibsse-ng"
+  ]
+}

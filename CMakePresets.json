@@ -1,0 +1,44 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ninja-vcpkg-debug",
+      "displayName": "Ninja + vcpkg (Debug)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/debug",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    },
+    {
+      "name": "ninja-vcpkg-release",
+      "displayName": "Ninja + vcpkg (Release)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/release",
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_TARGET_TRIPLET": "x64-windows"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build-ninja-vcpkg-debug",
+      "displayName": "Build Ninja + vcpkg (Debug)",
+      "configurePreset": "ninja-vcpkg-debug"
+    },
+    {
+      "name": "build-ninja-vcpkg-release",
+      "displayName": "Build Ninja + vcpkg (Release)",
+      "configurePreset": "ninja-vcpkg-release"
+    }
+  ]
+}
